@@ -1,4 +1,7 @@
 use std::io::{self, BufRead};
+use std::sync::mpsc::{channel, Receiver, Sender, RecvTimeoutError, TryRecvError};
+use std::thread;
+use std::time::Duration;
 
 fn main() {
     ::std::process::exit(match run_app() {
@@ -15,17 +18,52 @@ fn run_app() -> io::Result<()> {
     let mut in_handle = stdin.lock();
     let mut in_buffer = String::new();
 
-    loop {
-        in_buffer.clear();
-        match in_handle.read_line(&mut in_buffer) {
-            Ok(0) => {
-                println!("(rust: Got EOF)");
-                break;
-            },
-            Ok(_bytes_read) => print!("from parent: {}", in_buffer),
-            Err(e) => return Err(e),
-        }
+    let (send_stop, recv_stopped) = pretend_serial_service();
+
+    match in_handle.read_line(&mut in_buffer) {
+        Ok(0) => println!("(rust: Got EOF)"),
+        Ok(_bytes_read) => print!("from parent: {}", in_buffer),
+        Err(e) => return Err(e),
     }
 
+    println!("(rust: sending stop message)");
+    send_stop.send(()).expect("service disconnected already");
+
+    println!("(rust: waiting for service stop ...)");
+    match recv_stopped.recv_timeout(Duration::from_millis(2000)) {
+        Ok(_) => (),
+        Err(RecvTimeoutError::Disconnected) =>
+            println!("(rust: svc disconnected"),
+        Err(RecvTimeoutError::Timeout) =>
+            println!("(rust: timed out waiting for service to stop"),
+    };
+
     Ok(())
+}
+
+fn pretend_serial_service() -> (Sender<()>, Receiver<()>) {
+    let (send_stop, recv_stop) = channel::<()>();
+    let (send_stopped, recv_stopped) = channel::<()>();
+
+    thread::spawn(move || {
+        for i in 0.. {
+            println!("Pretend serial output {}", i);
+            sleep(500);
+
+            match recv_stop.try_recv() {
+                Ok(_) => {
+                    send_stopped.send(()).expect("main disconnected too quickly");
+                    break;
+                },
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Disconnected) => panic!("recv_stop disconnected"),
+            }
+        }
+    });
+
+    (send_stop, recv_stopped)
+}
+
+fn sleep(dur_ms: u64) {
+    thread::sleep(Duration::from_millis(dur_ms));
 }

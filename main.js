@@ -1,16 +1,7 @@
 const { spawn } = require('child_process');
 
-let done = false
-
 const rust_process = spawn(
-  'target/debug/monitor-poc',
-  {
-    stdio: [
-      'pipe',  // stdin
-      'pipe',  // stdout
-      'ignore' // stderr
-    ]
-  }
+  'target/debug/monitor-poc'
 );
 
 rust_process.on('error', (err) => {
@@ -18,30 +9,20 @@ rust_process.on('error', (err) => {
 });
 
 rust_process.stdout.on('data', (data) => {
-  // Slice removes trailing \n from the Buffer
-  console.log(`from child: "${data.slice(0, -1)}"`);
+  console.log(`from child: "${data.toString().trimRight()}"`);
+});
+
+rust_process.stderr.on('data', (data) => {
+  console.log(`from child (stderr): "${data.toString().trimRight()}"`);
 });
 
 rust_process.on('exit', (code) => {
   console.log(`child process exited with code ${code}`);
-  done = true;
 });
 
-let iter = 0;
-
-const intervalId = setInterval(() => {
-  if (!done) {
-    if (iter == 10) {
-      rust_process.stdin.end();
-    } else {
-      rust_process.stdin.write(`${iter}\n`);
-    }
-  } else {
-    console.log("(parent: Bye!)");
-    clearInterval(intervalId);
-  }
-
-  iter++;
-}, 100);
+setTimeout(() => {
+  console.log("(parent: closing child process stdin)");
+  rust_process.stdin.end();
+}, 5000);
 
 console.log("(parent: main thread ended)");
