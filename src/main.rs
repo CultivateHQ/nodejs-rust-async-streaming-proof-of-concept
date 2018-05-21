@@ -1,7 +1,10 @@
 use std::io::{self, Read};
-use std::sync::mpsc::{channel, Receiver, Sender, RecvTimeoutError, SendError, TryRecvError};
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 use std::time::Duration;
+
+mod errors;
+use errors::MyError;
 
 fn main() {
     ::std::process::exit(match run_app() {
@@ -11,31 +14,6 @@ fn main() {
            1
        }
     });
-}
-
-#[derive(Debug)]
-enum MyError {
-    Io(io::Error),
-    RecvTimeoutError(RecvTimeoutError),
-    SendError(SendError<()>),
-}
-
-impl From<io::Error> for MyError {
-    fn from(error: io::Error) -> MyError {
-        MyError::Io(error)
-    }
-}
-
-impl From<RecvTimeoutError> for MyError {
-    fn from(error: RecvTimeoutError) -> MyError {
-        MyError::RecvTimeoutError(error)
-    }
-}
-
-impl From<SendError<()>> for MyError {
-    fn from(error: SendError<()>) -> MyError {
-        MyError::SendError(error)
-    }
 }
 
 fn run_app() -> Result<(), MyError> {
