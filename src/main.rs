@@ -30,7 +30,7 @@ fn run_app() -> io::Result<()> {
     send_stop.send(()).expect("service disconnected already");
 
     println!("(rust: waiting for service stop ...)");
-    match recv_stopped.recv_timeout(Duration::from_millis(2000)) {
+    match recv_stopped.recv_timeout(Duration::from_secs(2)) {
         Ok(_) => (),
         Err(RecvTimeoutError::Disconnected) =>
             println!("(rust: svc disconnected"),
