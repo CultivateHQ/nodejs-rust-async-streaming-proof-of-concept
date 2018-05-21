@@ -1,5 +1,5 @@
 use std::io::{self, Read};
-use std::sync::mpsc::{channel, Receiver, Sender, RecvTimeoutError, TryRecvError};
+use std::sync::mpsc::{channel, Receiver, Sender, RecvTimeoutError, SendError, TryRecvError};
 use std::thread;
 use std::time::Duration;
 
@@ -13,27 +13,46 @@ fn main() {
     });
 }
 
-fn run_app() -> io::Result<()> {
+#[derive(Debug)]
+enum MyError {
+    Io(io::Error),
+    RecvTimeoutError(RecvTimeoutError),
+    SendError(SendError<()>),
+}
+
+impl From<io::Error> for MyError {
+    fn from(error: io::Error) -> MyError {
+        MyError::Io(error)
+    }
+}
+
+impl From<RecvTimeoutError> for MyError {
+    fn from(error: RecvTimeoutError) -> MyError {
+        MyError::RecvTimeoutError(error)
+    }
+}
+
+impl From<SendError<()>> for MyError {
+    fn from(error: SendError<()>) -> MyError {
+        MyError::SendError(error)
+    }
+}
+
+fn run_app() -> Result<(), MyError> {
     let (send_stop, recv_stopped) = pretend_serial_service();
 
     // Block awaiting any data or the stream being closed
     let mut in_buffer = []; // empty, we will not actually read anything
     match io::stdin().read(&mut in_buffer) {
         Ok(_) => println!("(rust: Got EOF)"),
-        Err(e) => return Err(e),
+        Err(e) => return Err(e.into()),
     }
 
     println!("(rust: sending stop message)");
-    send_stop.send(()).expect("service disconnected already");
+    send_stop.send(())?;
 
     println!("(rust: waiting for service stop ...)");
-    match recv_stopped.recv_timeout(Duration::from_secs(2)) {
-        Ok(_) => (),
-        Err(RecvTimeoutError::Disconnected) =>
-            println!("(rust: svc disconnected"),
-        Err(RecvTimeoutError::Timeout) =>
-            println!("(rust: timed out waiting for service to stop"),
-    };
+    recv_stopped.recv_timeout(Duration::from_secs(2))?;
 
     Ok(())
 }
