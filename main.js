@@ -32,7 +32,7 @@ let iter = 0;
 const intervalId = setInterval(() => {
   if (!done) {
     if (iter == 10) {
-      rust_process.stdin.end("That's all folks\n");
+      rust_process.stdin.end();
     } else {
       rust_process.stdin.write(`${iter}\n`);
     }
