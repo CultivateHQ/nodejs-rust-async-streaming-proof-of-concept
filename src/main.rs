@@ -1,4 +1,4 @@
-use std::io::{self, BufRead};
+use std::io::{self, Read};
 use std::sync::mpsc::{channel, Receiver, Sender, RecvTimeoutError, TryRecvError};
 use std::thread;
 use std::time::Duration;
@@ -16,13 +16,12 @@ fn main() {
 fn run_app() -> io::Result<()> {
     let stdin = io::stdin();
     let mut in_handle = stdin.lock();
-    let mut in_buffer = String::new();
+    let mut in_buffer = []; // empty, we will not actually read anything
 
     let (send_stop, recv_stopped) = pretend_serial_service();
 
-    match in_handle.read_line(&mut in_buffer) {
-        Ok(0) => println!("(rust: Got EOF)"),
-        Ok(_bytes_read) => print!("from parent: {}", in_buffer),
+    match in_handle.read(&mut in_buffer) {
+        Ok(_) => println!("(rust: Got EOF)"),
         Err(e) => return Err(e),
     }
 
