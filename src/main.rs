@@ -14,14 +14,11 @@ fn main() {
 }
 
 fn run_app() -> io::Result<()> {
-    let stdin = io::stdin();
-    let mut in_handle = stdin.lock();
-    let mut in_buffer = []; // empty, we will not actually read anything
-
     let (send_stop, recv_stopped) = pretend_serial_service();
 
     // Block awaiting any data or the stream being closed
-    match in_handle.read(&mut in_buffer) {
+    let mut in_buffer = []; // empty, we will not actually read anything
+    match io::stdin().read(&mut in_buffer) {
         Ok(_) => println!("(rust: Got EOF)"),
         Err(e) => return Err(e),
     }
