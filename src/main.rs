@@ -20,6 +20,7 @@ fn run_app() -> io::Result<()> {
 
     let (send_stop, recv_stopped) = pretend_serial_service();
 
+    // Block awaiting any data or the stream being closed
     match in_handle.read(&mut in_buffer) {
         Ok(_) => println!("(rust: Got EOF)"),
         Err(e) => return Err(e),
