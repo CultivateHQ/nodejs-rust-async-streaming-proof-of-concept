@@ -3,6 +3,7 @@ use std::sync::mpsc::{RecvTimeoutError, SendError};
 
 #[derive(Debug)]
 pub enum MyError {
+    ThreadPanicked,
     Io(io::Error),
     RecvTimeoutError(RecvTimeoutError),
     SendError(SendError<()>),
